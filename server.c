@@ -14,6 +14,33 @@
 #define SENSOR_MAZ_SIZE 10
 #define IN_MAZ_SIZE 10
 #define SENSORS_MAX_QUANTITY 4
+#define SENSORS_MAX_QUANTITY_IN_SERVER 15
+
+/*
+As linhas representam cada um dos equipamentos.
+As colunas representam cada um dos sensores.
+Para verificar se um sensor esta em um equipamento, o valor linha,coluna deve ser 1. Caso contrario nao esta.
+
+    0   1   2   3
+0   0   0   0   0
+1   0   0   0   0
+2   0   0   0   0
+3   0   0   0   0
+
+Sensores
+Temperatura 01 > 0
+Pressão 02 > 1
+Velocidade 03 > 2
+Corrente 04 > 3
+
+Equipamentos
+Esteira 01 > 0
+Guindaste 02 > 1
+Ponte Rolante 03 > 2
+Empilhadeira 04 > 3
+*/
+int database[4][4];
+int quantidade_sensores = 0;
 
 void usage(int argc, char **argv) {
     printf("usage: %s <v4|v6> <server port>\n", argv[0]);
@@ -25,6 +52,50 @@ struct client_data {
     int csock;
     struct sockaddr_storage storage;
 };
+
+/*
+0 > sensor(es) adicionado(s) com sucesso
+1-4 > sensor ja existe no equipamento
+-1 > limite excedido
+*/
+int add_sensor(int *sensors, int equipament) {
+    printf("ADD SENSOR\n");
+    if (quantidade_sensores >= 15) return -1;
+
+    for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+        if (sensors[i] != 0) {
+            if (database[equipament-1][sensors[i]-1] == 1) return sensors[i];
+        }
+    }
+    for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+        if (sensors[i] != 0) {
+            database[equipament-1][sensors[i]-1] = 1;
+            quantidade_sensores++;
+        }
+    }
+    return 0;
+}
+
+/*
+0 > sensor(es) removido(s) com sucesso
+1-4 > sensor nao existe no equipamento
+*/
+int remove_sensor(int *sensors, int equipament) {
+    printf("REMOVE SENSOR\n");
+
+    for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+        if (sensors[i] != 0) {
+            if (database[equipament-1][sensors[i]-1] == 0) return sensors[i];
+        }
+    }
+    for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+        if (sensors[i] != 0) {
+            database[equipament-1][sensors[i]-1] = 0;
+            quantidade_sensores--;
+        }
+    }
+    return 0;
+}
 
 char* message_treating(char *str) {
     char labelCommand[COMMAND_MAZ_SIZE];
@@ -150,7 +221,72 @@ char* message_treating(char *str) {
     printf("Label in: %s\n", labelIn);
     printf("Equipament id: %d\n", equipamentId);
 
-    return "sistema supervisorio";
+    if (strcmp(labelCommand, "add") == 0) {
+        int add = add_sensor(sensors, equipamentId);
+        if (add == -1) {
+            printf("limit exceeded\n");
+            return "limit exceeded";
+        }
+        if (add == 0) {
+            char *buf = malloc (sizeof (char) * BUFSZ);
+            snprintf(buf, BUFSZ, "sensor");
+            for(int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+                printf("pos %d - sensor %d\n", i, sensors[i]);
+                if (sensors[i] != 0) {
+                    char str[BUFSZ];
+                    snprintf(str, BUFSZ, " %d", sensors[i]);
+                    strcat(buf, str);
+                }
+            }
+            strcat(buf, " added");
+            return buf;
+        }
+        char *buf = malloc (sizeof (char) * BUFSZ);
+        snprintf(buf, BUFSZ, "sensor %d already exists in %d", add, equipamentId);
+        return buf;
+    }
+    
+    if (strcmp(labelCommand, "remove") == 0) {
+        int remove = remove_sensor(sensors, equipamentId);
+        if (remove == 0) {
+            char *buf = malloc (sizeof (char) * BUFSZ);
+            snprintf(buf, BUFSZ, "sensor");
+            for(int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+                printf("pos %d - sensor %d\n", i, sensors[i]);
+                if (sensors[i] != 0) {
+                    char str[BUFSZ];
+                    snprintf(str, BUFSZ, " %d", sensors[i]);
+                    strcat(buf, str);
+                }
+            }
+            strcat(buf, " removed");
+            return buf;
+        }
+        char *buf = malloc (sizeof (char) * BUFSZ);
+        snprintf(buf, BUFSZ, "sensor %d does not exist in %d", remove, equipamentId);
+        return buf;
+    }
+    
+    if (strcmp(labelCommand, "list") == 0) {
+        return "list";
+    }
+    
+    if (strcmp(labelCommand, "read") == 0) {
+        return "read";
+    }
+    
+    return "invalid command";
+}
+
+void imprime_database() {
+    printf("DATABASE\n");
+    for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+        printf("[");
+        for (int j = 0; j<SENSORS_MAX_QUANTITY; j++) {
+            printf(" %d", database[i][j]);
+        }
+        printf(" ]\n");
+    }
 }
 
 void * client_thread(void *data) {
@@ -183,6 +319,7 @@ void * client_thread(void *data) {
         if (count != strlen(buf)) {
             logexit("send");
         }
+        imprime_database();
     }
     
     close(cdata->csock);
@@ -190,6 +327,12 @@ void * client_thread(void *data) {
 }
 
 int main(int argc, char **argv) {
+    for (int i = 0; i<4; i++) {
+        for (int j = 0; j<4; j++) {
+            database[i][j] = 0;
+        }
+    }
+
     if (argc < 3) {
         usage(argc, argv);
     }
