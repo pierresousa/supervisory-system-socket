@@ -60,17 +60,24 @@ struct client_data {
 */
 int add_sensor(int *sensors, int equipament) {
     printf("ADD SENSOR\n");
-    if (quantidade_sensores >= 15) return -1;
+    if (quantidade_sensores >= SENSORS_MAX_QUANTITY_IN_SERVER) return -1;
 
     for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
         if (sensors[i] != 0) {
-            if (database[equipament-1][sensors[i]-1] == 1) return sensors[i];
+            for (int pos_sensor = 0; pos_sensor<SENSORS_MAX_QUANTITY; pos_sensor ++){
+                if (database[equipament-1][pos_sensor] == sensors[i]) return sensors[i];
+            }
         }
     }
     for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
         if (sensors[i] != 0) {
-            database[equipament-1][sensors[i]-1] = 1;
-            quantidade_sensores++;
+            for (int pos_sensor = 0; pos_sensor<SENSORS_MAX_QUANTITY; pos_sensor ++){
+                if (database[equipament-1][pos_sensor] == 0) {
+                    database[equipament-1][pos_sensor] = sensors[i];
+                    quantidade_sensores++;
+                    break;
+                }
+            }
         }
     }
     return 0;
@@ -84,14 +91,26 @@ int remove_sensor(int *sensors, int equipament) {
     printf("REMOVE SENSOR\n");
 
     for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
-        if (sensors[i] != 0) {
-            if (database[equipament-1][sensors[i]-1] == 0) return sensors[i];
+        int has_sensor = 0;
+        for (int pos_sensor = 0; pos_sensor<SENSORS_MAX_QUANTITY; pos_sensor ++){
+            if (database[equipament-1][pos_sensor] == sensors[i]) {
+                has_sensor = 1;
+                break;
+            }
         }
+        if (has_sensor == 0) return sensors[i];
     }
     for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
         if (sensors[i] != 0) {
-            database[equipament-1][sensors[i]-1] = 0;
-            quantidade_sensores--;
+            for (int pos_sensor = 0; pos_sensor<SENSORS_MAX_QUANTITY; pos_sensor ++){
+                if (database[equipament-1][pos_sensor] == sensors[i]) {
+                    database[equipament-1][pos_sensor] = 0;
+                    quantidade_sensores--;
+                    for (int pos_sensor_move = pos_sensor; pos_sensor_move<(SENSORS_MAX_QUANTITY-1); pos_sensor_move ++){
+                        database[equipament-1][pos_sensor_move] = database[equipament-1][pos_sensor_move+1];
+                    }
+                }
+            }
         }
     }
     return 0;
@@ -234,7 +253,7 @@ char* message_treating(char *str) {
                 printf("pos %d - sensor %d\n", i, sensors[i]);
                 if (sensors[i] != 0) {
                     char str[BUFSZ];
-                    snprintf(str, BUFSZ, " %d", sensors[i]);
+                    snprintf(str, BUFSZ, " 0%d", sensors[i]);
                     strcat(buf, str);
                 }
             }
@@ -242,7 +261,7 @@ char* message_treating(char *str) {
             return buf;
         }
         char *buf = malloc (sizeof (char) * BUFSZ);
-        snprintf(buf, BUFSZ, "sensor %d already exists in %d", add, equipamentId);
+        snprintf(buf, BUFSZ, "sensor 0%d already exists in 0%d", add, equipamentId);
         return buf;
     }
     
@@ -255,7 +274,7 @@ char* message_treating(char *str) {
                 printf("pos %d - sensor %d\n", i, sensors[i]);
                 if (sensors[i] != 0) {
                     char str[BUFSZ];
-                    snprintf(str, BUFSZ, " %d", sensors[i]);
+                    snprintf(str, BUFSZ, " 0%d", sensors[i]);
                     strcat(buf, str);
                 }
             }
@@ -263,12 +282,23 @@ char* message_treating(char *str) {
             return buf;
         }
         char *buf = malloc (sizeof (char) * BUFSZ);
-        snprintf(buf, BUFSZ, "sensor %d does not exist in %d", remove, equipamentId);
+        snprintf(buf, BUFSZ, "sensor 0%d does not exist in 0%d", remove, equipamentId);
         return buf;
     }
     
     if (strcmp(labelCommand, "list") == 0) {
-        return "list";
+        int has_sensor = 0;
+        char *buf = malloc (sizeof (char) * BUFSZ);
+        for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+            if (database[equipamentId-1][i] != 0){
+                has_sensor = 1;
+                char str[BUFSZ];
+                snprintf(str, BUFSZ, "0%d ", database[equipamentId-1][i]);
+                strcat(buf, str);
+            }
+        }
+        if (has_sensor == 1) return buf;
+        return "none";
     }
     
     if (strcmp(labelCommand, "read") == 0) {
