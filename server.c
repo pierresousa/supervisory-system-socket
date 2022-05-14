@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -133,114 +134,86 @@ char* message_treating(char *str) {
     char * pch;
     // Retira o \n
     strtok (str,"\n");
-    printf ("Splitting string \"%s\" into tokens:\n",str);
     pch = strtok (str," ,.-");
     while (pch != NULL)
     {
-        printf ("Validate: %s\n",pch);
         if (strlen(labelCommand) < 1) {
-            printf ("Commando Adicionado: %s\n",pch);
             strcat(labelCommand, pch);
         } else {
             if (strcmp(labelCommand, "add") == 0) {
-                printf ("Commando eh add\n");
                 if (strlen(labelSensor) < 1) {
-                    printf ("Sensor Label Adicionado: %s\n",pch);
                     strcat(labelSensor, pch);
                 } else {
                     if ((strcmp(labelSensor, "sensor") == 0) || (strcmp(labelSensor, "sensors") == 0)) { 
-                        printf ("Sensor Label sensor(s)\n");
                         if (strcmp(pch, "in") == 0) {
-                            printf ("In Label\n"); 
                             strcat(labelIn, pch);
                         }
                         if (strlen(labelIn) < 1) {
                             sensors[count] = atoi(pch);
                             count++;
-                            printf ("Adiciona sensor %s\n", pch); 
                         } else {
-                            printf ("Ja existe o in, agora eh puxar o equipamento\n"); 
                             equipamentId = atoi(pch);
                         }
                     } else {
-                        printf ("Sensor Label desconhecido\n");
                     }
                 }
             } else if (strcmp(labelCommand, "remove") == 0) {
-                printf ("Commando eh remove\n");
                 if (strlen(labelSensor) < 1) {
-                    printf ("Sensor Label Adicionado: %s\n",pch);
                     strcat(labelSensor, pch);
                 } else {
                     if ((strcmp(labelSensor, "sensor") == 0) || (strcmp(labelSensor, "sensors") == 0)) { 
-                        printf ("Sensor Label sensor(s)\n");
                         if (strcmp(pch, "in") == 0) {
-                            printf ("In Label\n"); 
                             strcat(labelIn, pch);
                         }
                         if (strlen(labelIn) < 1) {
                             sensors[count] = atoi(pch);
                             count++;
-                            printf ("Adiciona sensor %s\n", pch); 
                         } else {
-                            printf ("Ja existe o in, agora eh puxar o equipamento\n"); 
                             equipamentId = atoi(pch);
                         }
                     } else {
-                        printf ("Sensor Label desconhecido\n");
                     }
                 }
             } else if (strcmp(labelCommand, "list") == 0) {
-                printf ("Commando eh list\n");
                 if (strlen(labelSensor) < 1) {
-                    printf ("Sensor Label Adicionado: %s\n",pch);
                     strcat(labelSensor, pch);
                 } else {
                     if ((strcmp(labelSensor, "sensor") == 0) || (strcmp(labelSensor, "sensors") == 0)) { 
                         if (strlen(labelIn) < 1) {
-                            printf ("In Label\n"); 
                             strcat(labelIn, pch);
                         } else {
-                            printf ("Ja existe o in, agora eh puxar o equipamento\n"); 
                             equipamentId = atoi(pch);
                         }
                     } else {
-                        printf ("Sensor Label desconhecido\n");
                     }
                 }
             } else if (strcmp(labelCommand, "read") == 0) {
-                printf ("Commando eh read\n");
                 if (strcmp(pch, "in") == 0) {
-                    printf ("In Label\n"); 
                     strcat(labelIn, pch);
                 }
                 if (strlen(labelIn) < 1) {
                     sensors[count] = atoi(pch);
                     count++;
-                    printf ("Adiciona sensor %s\n", pch); 
                 } else {
-                    printf ("Ja existe o in, agora eh puxar o equipamento\n"); 
                     equipamentId = atoi(pch);
                 }
             } else if (strcmp(labelCommand, "kill") == 0) {
-                printf ("Commando eh kill\n");
             } else {
-                printf ("Commando nao reconhecido\n");
-
             }
         }
         pch = strtok (NULL, " ,.-");
     }
-    printf("Command: %s\n", labelCommand);
-    printf("Label sensor: %s\n", labelSensor);
-    printf("Sensores []:\n");
-    for(int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
-        printf("pos %d - sensor %d\n", i, sensors[i]);
-    }
-    printf("Label in: %s\n", labelIn);
-    printf("Equipament id: %d\n", equipamentId);
-
+    
     if (strcmp(labelCommand, "add") == 0) {
+        for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+            if (i>0) {
+                if (sensors[i] < 0 || sensors[i] > 4) return "invalid sensor";
+            } else {
+                if (sensors[i] <= 0 || sensors[i] > 4) return "invalid sensor";
+            }
+        }
+        if (equipamentId <= 0 || equipamentId > 4) return "invalid equipment";
+
         int add = add_sensor(sensors, equipamentId);
         if (add == -1) {
             printf("limit exceeded\n");
@@ -250,7 +223,6 @@ char* message_treating(char *str) {
             char *buf = malloc (sizeof (char) * BUFSZ);
             snprintf(buf, BUFSZ, "sensor");
             for(int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
-                printf("pos %d - sensor %d\n", i, sensors[i]);
                 if (sensors[i] != 0) {
                     char str[BUFSZ];
                     snprintf(str, BUFSZ, " 0%d", sensors[i]);
@@ -266,12 +238,19 @@ char* message_treating(char *str) {
     }
     
     if (strcmp(labelCommand, "remove") == 0) {
+        for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+            if (i>0) {
+                if (sensors[i] < 0 || sensors[i] > 4) return "invalid sensor";
+            } else {
+                if (sensors[i] <= 0 || sensors[i] > 4) return "invalid sensor";
+            }
+        }
+        if (equipamentId <= 0 || equipamentId > 4) return "invalid equipment";
         int remove = remove_sensor(sensors, equipamentId);
         if (remove == 0) {
             char *buf = malloc (sizeof (char) * BUFSZ);
             snprintf(buf, BUFSZ, "sensor");
             for(int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
-                printf("pos %d - sensor %d\n", i, sensors[i]);
                 if (sensors[i] != 0) {
                     char str[BUFSZ];
                     snprintf(str, BUFSZ, " 0%d", sensors[i]);
@@ -287,6 +266,7 @@ char* message_treating(char *str) {
     }
     
     if (strcmp(labelCommand, "list") == 0) {
+        if (equipamentId <= 0 || equipamentId > 4) return "invalid equipment";
         int has_sensor = 0;
         char *buf = malloc (sizeof (char) * BUFSZ);
         for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
@@ -302,7 +282,43 @@ char* message_treating(char *str) {
     }
     
     if (strcmp(labelCommand, "read") == 0) {
-        return "read";
+        for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+            if (i>0) {
+                if (sensors[i] < 0 || sensors[i] > 4) return "invalid sensor";
+            } else {
+                if (sensors[i] <= 0 || sensors[i] > 4) return "invalid sensor";
+            }
+        }
+        if (equipamentId <= 0 || equipamentId > 4) return "invalid equipment";
+        char *buf = malloc (sizeof (char) * BUFSZ);
+        int has_sensor = 0;
+        for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+            if (sensors[i] != 0){
+                for (int pos_sensor = 0; pos_sensor<SENSORS_MAX_QUANTITY; pos_sensor ++){
+                    if (database[equipamentId-1][pos_sensor] == sensors[i]) {
+                        has_sensor = 0;
+                        break;
+                    } else{
+                        has_sensor = sensors[i];
+                    }
+                }
+            }
+        }
+        if (has_sensor != 0) {
+            snprintf(buf, BUFSZ, "sensor(s) 0%d not installed", has_sensor);
+            return buf;
+        }
+        memset(buf, 0, BUFSZ);
+        srand((unsigned int)time(NULL));
+        for (int i = 0; i<SENSORS_MAX_QUANTITY; i++) {
+            if (sensors[i] != 0){
+                char str[BUFSZ];
+                float x = ((float)rand()/(float)(RAND_MAX)) * 10;
+                snprintf(str, BUFSZ, "%.2f ", x);
+                strcat(buf, str);
+            }
+        }
+        return buf;
     }
     
     return "invalid command";
